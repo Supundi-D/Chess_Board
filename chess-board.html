@@ -96,6 +96,7 @@
 
 
 <div class="game">
+    
     <div class="side">
       <h4>Black Captured</h4>
       <div id="blackCaptured" class="captured"></div>
@@ -109,8 +110,7 @@
     </div>
   </div>
 
-   
-<script>
+  <script>
     const board = document.getElementById("board");
     const turnText = document.getElementById("turn");
     const whiteCaptured = document.getElementById("whiteCaptured");
@@ -120,7 +120,13 @@
     let currentTurn = "white";
     const squares = [];
     
-    // Initial board
+    // Track movement
+    const moved = {
+      wK:false, bK:false,
+      wRL:false, wRR:false,
+      bRL:false, bRR:false
+    };
+    
     const pieces = [
       "♜","♞","♝","♛","♚","♝","♞","♜",
       "♟","♟","♟","♟","♟","♟","♟","♟",
@@ -132,129 +138,164 @@
       "♖","♘","♗","♕","♔","♗","♘","♖"
     ];
     
-    // Create board
-    pieces.forEach((p, i) => {
-      const sq = document.createElement("div");
-      sq.className = "square " + (((Math.floor(i/8)+i)%2===0) ? "white" : "black");
-      sq.textContent = p;
-      sq.dataset.index = i;
-      sq.onclick = () => clickSquare(sq);
+    // Board
+    pieces.forEach((p,i)=>{
+      const sq=document.createElement("div");
+      sq.className="square "+(((Math.floor(i/8)+i)%2===0)?"white":"black");
+      sq.textContent=p;
+      sq.dataset.index=i;
+      sq.onclick=()=>clickSquare(sq);
       board.appendChild(sq);
       squares.push(sq);
     });
     
-    function clickSquare(target) {
-      if (!selected) {
-        if (target.textContent && isCorrectTurn(target.textContent)) {
-          selected = target;
-          target.classList.add("selected");
+    function clickSquare(t){
+      if(!selected){
+        if(t.textContent && isCorrectTurn(t.textContent)){
+          selected=t; t.classList.add("selected");
         }
         return;
       }
     
-      const from = +selected.dataset.index;
-      const to = +target.dataset.index;
-      const piece = selected.textContent;
-      const capturedPiece = target.textContent;
+      const from=+selected.dataset.index;
+      const to=+t.dataset.index;
+      const piece=selected.textContent;
+      const captured=t.textContent;
     
-      if (isValidMove(piece, from, to)) {
-    
-        // Store captured piece
-        if (capturedPiece) {
-          if ("♙♖♘♗♕♔".includes(capturedPiece)) {
-            whiteCaptured.textContent += capturedPiece;
-          } else {
-            blackCaptured.textContent += capturedPiece;
-          }
+      if(isCastling(piece,from,to)){
+        doCastling(piece,to);
+        switchTurn();
+      }
+      else if(isValidMove(piece,from,to)){
+        if(captured){
+          ("♙♖♘♗♕♔".includes(captured)?whiteCaptured:blackCaptured).textContent+=captured;
         }
-    
-        target.textContent = piece;
-        selected.textContent = "";
+        t.textContent=piece;
+        selected.textContent="";
+        markMoved(piece,from);
         switchTurn();
       }
     
       selected.classList.remove("selected");
-      selected = null;
+      selected=null;
     }
     
-    function switchTurn() {
-      currentTurn = currentTurn === "white" ? "black" : "white";
-      turnText.textContent = "Turn: " + (currentTurn === "white" ? "White" : "Black");
+    function switchTurn(){
+      currentTurn=currentTurn==="white"?"black":"white";
+      turnText.textContent="Turn: "+(currentTurn==="white"?"White":"Black");
     }
     
-    function isCorrectTurn(piece) {
-      return currentTurn === "white"
-        ? "♙♖♘♗♕♔".includes(piece)
-        : "♟♜♞♝♛♚".includes(piece);
+    function isCorrectTurn(p){
+      return currentTurn==="white"
+        ?"♙♖♘♗♕♔".includes(p)
+        :"♟♜♞♝♛♚".includes(p);
     }
     
-    // ---------------- MOVE RULES ----------------
-    function isValidMove(piece, from, to) {
-      const fr = Math.floor(from / 8), fc = from % 8;
-      const tr = Math.floor(to / 8), tc = to % 8;
-      const rd = tr - fr, cd = tc - fc;
-      const absR = Math.abs(rd), absC = Math.abs(cd);
+    /* ---------------- REAL CASTLING ---------------- */
     
-      const targetPiece = squares[to].textContent;
+    function isCastling(piece,from,to){
+      if(isKingInCheck(currentTurn)) return false;
     
-      if (targetPiece && isCorrectTurn(targetPiece)) return false;
-    
-      // WHITE PAWN
-      if (piece === "♙") {
-        if (fc === tc && !targetPiece) {
-          if (fr === 6 && rd === -2 && isEmpty(from - 8)) return true;
-          if (rd === -1) return true;
-        }
-        if (absC === 1 && rd === -1 && targetPiece) return true;
+      if(piece==="♔" && from===60 && !moved.wK){
+        if(to===62 && !moved.wRR && isEmpty(61)&&isEmpty(62)
+          && !isSquareAttacked(61,"black") && !isSquareAttacked(62,"black")) return true;
+        if(to===58 && !moved.wRL && isEmpty(59)&&isEmpty(58)&&isEmpty(57)
+          && !isSquareAttacked(59,"black") && !isSquareAttacked(58,"black")) return true;
       }
     
-      // BLACK PAWN
-      if (piece === "♟") {
-        if (fc === tc && !targetPiece) {
-          if (fr === 1 && rd === 2 && isEmpty(from + 8)) return true;
-          if (rd === 1) return true;
-        }
-        if (absC === 1 && rd === 1 && targetPiece) return true;
+      if(piece==="♚" && from===4 && !moved.bK){
+        if(to===6 && !moved.bRR && isEmpty(5)&&isEmpty(6)
+          && !isSquareAttacked(5,"white") && !isSquareAttacked(6,"white")) return true;
+        if(to===2 && !moved.bRL && isEmpty(3)&&isEmpty(2)&&isEmpty(1)
+          && !isSquareAttacked(3,"white") && !isSquareAttacked(2,"white")) return true;
       }
-    
-      if ("♖♜".includes(piece))
-        return (fr === tr || fc === tc) && clearPath(from, to);
-    
-      if ("♗♝".includes(piece))
-        return absR === absC && clearPath(from, to);
-    
-      if ("♕♛".includes(piece))
-        return (fr === tr || fc === tc || absR === absC) && clearPath(from, to);
-    
-      if ("♘♞".includes(piece))
-        return (absR === 2 && absC === 1) || (absR === 1 && absC === 2);
-    
-      if ("♔♚".includes(piece))
-        return absR <= 1 && absC <= 1;
-    
       return false;
     }
     
-    // ---------------- HELPERS ----------------
-    function isEmpty(index) {
-      return squares[index].textContent === "";
+    function doCastling(piece,to){
+      if(piece==="♔"){
+        squares[60].textContent="";
+        squares[to].textContent="♔";
+        if(to===62){ squares[63].textContent=""; squares[61].textContent="♖"; }
+        else{ squares[56].textContent=""; squares[59].textContent="♖"; }
+        moved.wK=true;
+      }
+      if(piece==="♚"){
+        squares[4].textContent="";
+        squares[to].textContent="♚";
+        if(to===6){ squares[7].textContent=""; squares[5].textContent="♜"; }
+        else{ squares[0].textContent=""; squares[3].textContent="♜"; }
+        moved.bK=true;
+      }
     }
     
-    function clearPath(from, to) {
-      const fr = Math.floor(from / 8), fc = from % 8;
-      const tr = Math.floor(to / 8), tc = to % 8;
-      const stepR = Math.sign(tr - fr);
-      const stepC = Math.sign(tc - fc);
+    /* ---------------- CHECK & ATTACK ---------------- */
     
-      let r = fr + stepR, c = fc + stepC;
-      while (r !== tr || c !== tc) {
-        if (squares[r * 8 + c].textContent !== "") return false;
-        r += stepR;
-        c += stepC;
+    function isKingInCheck(color){
+      const king=color==="white"?"♔":"♚";
+      const kIndex=squares.findIndex(s=>s.textContent===king);
+      return isSquareAttacked(kIndex,color==="white"?"black":"white");
+    }
+    
+    function isSquareAttacked(index,byColor){
+      return squares.some((sq,i)=>{
+        if(!sq.textContent) return false;
+        if(byColor==="white" && !"♙♖♘♗♕♔".includes(sq.textContent)) return false;
+        if(byColor==="black" && !"♟♜♞♝♛♚".includes(sq.textContent)) return false;
+        return isValidMove(sq.textContent,i,index,true);
+      });
+    }
+    
+    /* ---------------- NORMAL MOVES ---------------- */
+    
+    function isValidMove(piece,from,to,attackCheck=false){
+      const fr=Math.floor(from/8),fc=from%8;
+      const tr=Math.floor(to/8),tc=to%8;
+      const rd=tr-fr,cd=tc-fc;
+      const ar=Math.abs(rd),ac=Math.abs(cd);
+      const target=squares[to].textContent;
+      if(!attackCheck && target && isCorrectTurn(target)) return false;
+    
+      if(piece==="♙"){
+        if(fc===tc && !target && ((fr===6&&rd===-2&&isEmpty(from-8))||rd===-1)) return true;
+        if(ac===1&&rd===-1&&target) return true;
+      }
+      if(piece==="♟"){
+        if(fc===tc && !target && ((fr===1&&rd===2&&isEmpty(from+8))||rd===1)) return true;
+        if(ac===1&&rd===1&&target) return true;
+      }
+      if("♖♜".includes(piece)) return (fr===tr||fc===tc)&&clearPath(from,to);
+      if("♗♝".includes(piece)) return ar===ac&&clearPath(from,to);
+      if("♕♛".includes(piece)) return (fr===tr||fc===tc||ar===ac)&&clearPath(from,to);
+      if("♘♞".includes(piece)) return (ar===2&&ac===1)||(ar===1&&ac===2);
+      if("♔♚".includes(piece)) return ar<=1&&ac<=1;
+      return false;
+    }
+    
+    function markMoved(p,f){
+      if(p==="♔") moved.wK=true;
+      if(p==="♚") moved.bK=true;
+      if(p==="♖"&&f===56) moved.wRL=true;
+      if(p==="♖"&&f===63) moved.wRR=true;
+      if(p==="♜"&&f===0) moved.bRL=true;
+      if(p==="♜"&&f===7) moved.bRR=true;
+    }
+    
+    function isEmpty(i){ return squares[i].textContent===""; }
+    
+    function clearPath(from,to){
+      const fr=Math.floor(from/8),fc=from%8;
+      const tr=Math.floor(to/8),tc=to%8;
+      const sr=Math.sign(tr-fr),sc=Math.sign(tc-fc);
+      let r=fr+sr,c=fc+sc;
+      while(r!==tr||c!==tc){
+        if(squares[r*8+c].textContent!=="") return false;
+        r+=sr;c+=sc;
       }
       return true;
     }
     </script>
+    
 
 </body>
 
