@@ -73,6 +73,7 @@
             align-items: center;
             cursor: pointer;
             user-select: none;
+            transition: background-color 0.2s, transform 0.15s;
         }
 
         .white {
@@ -143,8 +144,8 @@
 <body>
     <h2> Chess Board</h2>
     <p>Click a piece, then click another square to move</p>
+    <br>
     <div id="turn">Turn: White</div>
-    <div id="board"></div>
 
     <div class="game">
         <div class="container">
