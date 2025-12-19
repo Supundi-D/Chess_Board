@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Board</title>
+
+
+    <style>
+        body {
+          font-family: Arial, sans-serif;
+          text-align: center;
+          margin-top: 20px;
+        }
+      
+        #board {
+          display: grid;
+          grid-template-columns: repeat(8, 60px);
+          width: 480px;
+          margin: auto;
+          border: 3px solid #333;
+        }
+      
+        .square {
+          width: 60px;
+          height: 60px;
+          font-size: 36px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          cursor: pointer;
+          user-select: none;
+        }
+      
+        .white { background: #f0d9b5; }
+        .black { background: #b58863; }
+      
+        .selected {
+          outline: 3px solid red;
+        }
+      
+        #turn {
+          font-weight: bold;
+          margin-bottom: 10px;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            width: 480px;
+            margin: auto;
+            border: 3px solid #333;
+        }
+
+        .square {
+            width: 60px;
+            height: 60px;
+            font-size: 36px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .white {
+            background: #f0d9b5;
+        }
+
+        .black {
+            background: #b58863;
+        }
+
+        .selected {
+            outline: 3px solid red;
+        }
+
+        #turn {
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <h2> Chess Board</h2>
+    <p>Click a piece, then click another square to move</p>
+    <div id="turn">Turn: White</div>
+    <div id="board"></div>
+
+    <script>
+        const board = document.getElementById("board");
+        const turnText = document.getElementById("turn");
+        
+        let selected = null;
+        let currentTurn = "white";
+        
+        const squares = [];
+        
+        // Board setup
+        const pieces = [
+          "♜","♞","♝","♛","♚","♝","♞","♜",
+          "♟","♟","♟","♟","♟","♟","♟","♟",
+          "","","","","","","","",
+          "","","","","","","","",
+          "","","","","","","","",
+          "","","","","","","","",
+          "♙","♙","♙","♙","♙","♙","♙","♙",
+          "♖","♘","♗","♕","♔","♗","♘","♖"
+        ];
+        
+        // Create board
+        pieces.forEach((p, i) => {
+          const sq = document.createElement("div");
+          sq.className = "square " + (((Math.floor(i/8)+i)%2===0) ? "white" : "black");
+          sq.textContent = p;
+          sq.dataset.index = i;
+          sq.onclick = () => clickSquare(sq);
+          board.appendChild(sq);
+          squares.push(sq);
+        });
+        
+        function clickSquare(target) {
+          if (!selected) {
+            if (target.textContent && isCorrectTurn(target.textContent)) {
+              selected = target;
+              target.classList.add("selected");
+            }
+            return;
+          }
+        
+          const from = +selected.dataset.index;
+          const to = +target.dataset.index;
+          const piece = selected.textContent;
+        
+          if (isValidMove(piece, from, to)) {
+            target.textContent = piece;
+            selected.textContent = "";
+            switchTurn();
+          }
+        
+          selected.classList.remove("selected");
+          selected = null;
+        }
+        
+        function switchTurn() {
+          currentTurn = currentTurn === "white" ? "black" : "white";
+          turnText.textContent = "Turn: " + (currentTurn === "white" ? "White" : "Black");
+        }
+        
+        function isCorrectTurn(piece) {
+          return currentTurn === "white"
+            ? "♙♖♘♗♕♔".includes(piece)
+            : "♟♜♞♝♛♚".includes(piece);
+        }
+        
+        // ---------------- MOVE RULES ----------------
+        function isValidMove(piece, from, to) {
+          const fr = Math.floor(from / 8), fc = from % 8;
+          const tr = Math.floor(to / 8), tc = to % 8;
+          const rd = tr - fr, cd = tc - fc;
+          const absR = Math.abs(rd), absC = Math.abs(cd);
+        
+          const targetPiece = squares[to].textContent;
+        
+          // Prevent capturing own piece
+          if (targetPiece && isCorrectTurn(targetPiece)) return false;
+        
+          // PAWN (WHITE)
+          if (piece === "♙") {
+            if (fc === tc && !targetPiece) {
+              if (fr === 6 && rd === -2 && isEmpty(from - 8)) return true;
+              if (rd === -1) return true;
+            }
+            if (absC === 1 && rd === -1 && targetPiece) return true;
+          }
+        
+          // PAWN (BLACK)
+          if (piece === "♟") {
+            if (fc === tc && !targetPiece) {
+              if (fr === 1 && rd === 2 && isEmpty(from + 8)) return true;
+              if (rd === 1) return true;
+            }
+            if (absC === 1 && rd === 1 && targetPiece) return true;
+          }
+        
+          // ROOK
+          if ("♖♜".includes(piece))
+            return (fr === tr || fc === tc) && clearPath(from, to);
+        
+          // BISHOP
+          if ("♗♝".includes(piece))
+            return absR === absC && clearPath(from, to);
+        
+          // QUEEN
+          if ("♕♛".includes(piece))
+            return (fr === tr || fc === tc || absR === absC) && clearPath(from, to);
+        
+          // KNIGHT
+          if ("♘♞".includes(piece))
+            return (absR === 2 && absC === 1) || (absR === 1 && absC === 2);
+        
+          // KING
+          if ("♔♚".includes(piece))
+            return absR <= 1 && absC <= 1;
+        
+          return false;
+        }
+        
+        // ---------------- HELPERS ----------------
+        function isEmpty(index) {
+          return squares[index].textContent === "";
+        }
+        
+        function clearPath(from, to) {
+          const fr = Math.floor(from / 8), fc = from % 8;
+          const tr = Math.floor(to / 8), tc = to % 8;
+        
+          const stepR = Math.sign(tr - fr);
+          const stepC = Math.sign(tc - fc);
+        
+          let r = fr + stepR;
+          let c = fc + stepC;
+        
+          while (r !== tr || c !== tc) {
+            if (squares[r * 8 + c].textContent !== "") return false;
+            r += stepR;
+            c += stepC;
+          }
+          return true;
+        }
+        </script>
+
+</body>
+
+</html>
